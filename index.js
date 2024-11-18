@@ -1,19 +1,19 @@
-const express = require('express');
-const { AccessToken } = require('agora-access-token');
-const { Token, Priviledges } = AccessToken;
+var express = require('express');
+var { AccessToken } = require('agora-access-token');
+var { Token, Priviledges } = AccessToken;
 
-const PORT = process.env.PORT || 8080;
+var PORT = process.env.PORT || 8080;
 
 if (!(process.env.APP_ID && process.env.APP_CERTIFICATE)) {
     throw new Error('You must define an APP_ID and APP_CERTIFICATE');
 }
-const APP_ID = process.env.APP_ID;
-const APP_CERTIFICATE = process.env.APP_CERTIFICATE;
+var APP_ID = process.env.APP_ID;
+var APP_CERTIFICATE = process.env.APP_CERTIFICATE;
 
-const app = express();
+var app = express();
 
-// List to store created channels with their expiration times
-let createdChannels = [];
+// List to store created channels
+var createdChannels = [];
 
 // Function to generate a random channel name
 function generateRandomChannelName() {
@@ -22,7 +22,7 @@ function generateRandomChannelName() {
 
 // Function to remove expired channels
 function removeExpiredChannels() {
-    const now = Date.now();
+    const now = Math.floor(Date.now() / 1000); // Current time in seconds
     createdChannels = createdChannels.filter(channel => channel.expireAt > now);
 }
 
@@ -37,25 +37,32 @@ function nocache(req, res, next) {
 app.get('/create_channel', nocache, (req, resp) => {
     resp.header('Access-Control-Allow-Origin', "*");
 
-    const channel = generateRandomChannelName();
-    const expireAt = Date.now() + 3600000; // Channel expires in 1 hour
+    try {
+        var channel = generateRandomChannelName();
+        const expireAt = Math.floor(Date.now() / 1000) + 3600; // Channel expires in 1 hour
 
-    createdChannels.push({ channel, expireAt });
+        createdChannels.push({ channel, expireAt });
 
-    const uid = req.query.uid ? req.query.uid : 0;
-    const expiredTs = req.query.expiredTs ? req.query.expiredTs : expireAt;
+        var uid = req.query.uid ? req.query.uid : 0;
+        var expiredTs = expireAt;
 
-    const token = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
-    token.addPriviledge(Priviledges.kJoinChannel, expiredTs);
+        console.log(`Creating token for channel: ${channel}`);
 
-    return resp.json({ 'channel': channel, 'token': token.build() });
+        var token = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
+        token.addPriviledge(Priviledges.kJoinChannel, expiredTs);
+
+        return resp.json({ 'channel': channel, 'token': token.build() });
+    } catch (error) {
+        console.error('Error creating channel:', error);
+        return resp.status(500).json({ 'error': 'Internal Server Error' });
+    }
 });
 
 // Endpoint to check if a channel exists
 app.get('/check_channel', nocache, (req, resp) => {
     resp.header('Access-Control-Allow-Origin', "*");
 
-    const channel = req.query.channel;
+    var channel = req.query.channel;
     if (!channel) {
         return resp.status(500).json({ 'error': 'channel name is required' });
     }
@@ -74,17 +81,24 @@ app.get('/check_channel', nocache, (req, resp) => {
 app.get('/access_token', nocache, (req, resp) => {
     resp.header('Access-Control-Allow-Origin', "*");
 
-    const channel = req.query.channel;
+    var channel = req.query.channel;
     if (!channel) {
         return resp.status(500).json({ 'error': 'channel name is required' });
     }
 
-    const uid = req.query.uid ? req.query.uid : 0;
-    const expiredTs = req.query.expiredTs ? req.query.expiredTs : 0;
+    var uid = req.query.uid ? req.query.uid : 0;
+    var expiredTs = req.query.expiredTs ? req.query.expiredTs : 0;
 
-    const token = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
-    token.addPriviledge(Priviledges.kJoinChannel, expiredTs);
-    return resp.json({ 'token': token.build() });
+    try {
+        console.log(`Generating token for channel: ${channel}`);
+
+        var token = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
+        token.addPriviledge(Priviledges.kJoinChannel, expiredTs);
+        return resp.json({ 'token': token.build() });
+    } catch (error) {
+        console.error('Error generating token:', error);
+        return resp.status(500).json({ 'error': 'Internal Server Error' });
+    }
 });
 
 app.listen(PORT, function () {
