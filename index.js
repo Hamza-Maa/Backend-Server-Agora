@@ -1,6 +1,7 @@
 var express = require('express');
 var { ChatTokenBuilder } = require('agora-token'); // Ensure correct import
 var { v4: uuidv4 } = require('uuid'); // UUID library for generating unique IDs
+var axios = require('axios');
 
 var PORT = process.env.PORT || 8080;
 
@@ -9,6 +10,9 @@ if (!(process.env.APP_ID && process.env.APP_CERTIFICATE)) {
 }
 var APP_ID = process.env.APP_ID;
 var APP_CERTIFICATE = process.env.APP_CERTIFICATE;
+var ORG_NAME = '711241378'; // Your Agora organization name
+var APP_NAME = '1432932'; // Your Agora app name
+var BASE_URL = `https://a71.chat.agora.io/${ORG_NAME}/${APP_NAME}`;
 
 var app = express();
 app.use(express.json()); // Middleware to parse JSON bodies
@@ -110,6 +114,33 @@ app.post('/generate_chat_token', nocache, (req, resp) => {
     }
 });
 
+// Endpoint to create a user in Agora Chat
+app.post('/create_user', nocache, async (req, resp) => {
+    const { token, username, password } = req.body;
+
+    if (!token || !username || !password) {
+        return resp.status(400).json({ error: 'token, username, and password are required' });
+    }
+
+    try {
+        const response = await axios.post(`${BASE_URL}/users`, {
+            username: username,
+            password: password
+        }, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        console.log(`Created user: ${username}`);
+        return resp.json(response.data);
+    } catch (error) {
+        console.error('Error creating user:', error.response ? error.response.data : error.message);
+        return resp.status(500).json({ 'error': 'Internal Server Error' });
+    }
+});
+
 // Existing endpoint to generate access token
 app.get('/access_token', nocache, (req, resp) => {
     resp.header('Access-Control-Allow-Origin', "*");
@@ -139,6 +170,7 @@ app.listen(PORT, function () {
     console.log('Create Channel request, /create_channel');
     console.log('Check Channel request, /check_channel?channel=[channel name]');
     console.log('Generate Chat Token request, /generate_chat_token');
+    console.log('Create User request, /create_user');
     console.log('Channel Key request, /access_token?uid=[user id]&channel=[channel name]');
     console.log('Channel Key with expiring time request, /access_token?uid=[user id]&channel=[channel name]&expiredTs=[expire ts]');
 });
