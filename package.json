@@ -7,7 +7,8 @@
   },
   "dependencies": {
     "agora-access-token": "^1.0.2",
-    "express": "^4.16.4"
+    "express": "^4.16.4",
+    "uuid": "^11.0.3"
   },
   "author": "Agora.IO",
   "repository": {
