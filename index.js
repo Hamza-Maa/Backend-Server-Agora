@@ -57,7 +57,7 @@ app.get('/create_channel', nocache, (req, resp) => {
 
         createdChannels.push({ channel, expireAt });
 
-        var uid = req.query.uid ? req.query.uid : 0;
+        var uid = req.query.uid ? req.query.uid : uuidv4(); // Generate a unique UID if not provided
         var expiredTs = expireAt;
 
         console.log(`Creating token for channel: ${channel}`);
@@ -86,19 +86,20 @@ app.get('/check_channel', nocache, (req, resp) => {
     if (createdChannels.some(c => c.channel === channel)) {
         return resp.json({ 'exists': true });
     } else {
-        return resp.json({ 'exists': false });
+        return resp.json({ 'exists': false' });
     }
 });
 
 // Endpoint to generate a Chat Token with user privileges
 app.post('/generate_chat_token', nocache, (req, resp) => {
-    const { userId, expire } = req.body;
+    const { expire } = req.body;
 
-    if (!userId || !expire) {
-        return resp.status(400).json({ error: 'userId and expire are required' });
+    if (!expire) {
+        return resp.status(400).json({ error: 'expire is required' });
     }
 
     try {
+        const userId = uuidv4(); // Generate a unique userId
         const token = generateChatToken(userId, expire);
         console.log(`Generated Chat Token for userId: ${userId}`);
         return resp.json({ uid: userId, token });
