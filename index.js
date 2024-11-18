@@ -1,7 +1,6 @@
 var express = require('express');
-var { ChatTokenBuilder } = require('agora-token');
+var { ChatTokenBuilder } = require('agora-token'); // Ensure correct import
 var { v4: uuidv4 } = require('uuid'); // UUID library for generating unique IDs
-var axios = require('axios');
 
 var PORT = process.env.PORT || 8080;
 
@@ -10,9 +9,6 @@ if (!(process.env.APP_ID && process.env.APP_CERTIFICATE)) {
 }
 var APP_ID = process.env.APP_ID;
 var APP_CERTIFICATE = process.env.APP_CERTIFICATE;
-var ORG_NAME = '711241378'; // Your Agora organization name
-var APP_NAME = '1432932'; // Your Agora app name
-var BASE_URL = `https://a71.chat.agora.io/${ORG_NAME}/${APP_NAME}`;
 
 var app = express();
 app.use(express.json()); // Middleware to parse JSON bodies
@@ -31,7 +27,6 @@ function removeExpiredChannels() {
     createdChannels = createdChannels.filter(channel => channel.expireAt > now);
 }
 
-// Define the nocache function
 function nocache(req, res, next) {
     res.header('Cache-Control', 'private, no-cache, no-store, must-revalidate');
     res.header('Expires', '-1');
@@ -52,6 +47,49 @@ function generateChatToken(chatUserUuid, expire) {
     }
 }
 
+// Endpoint to generate a random channel name and its access token
+app.get('/create_channel', nocache, (req, resp) => {
+    resp.header('Access-Control-Allow-Origin', "*");
+
+    try {
+        var channel = generateRandomChannelName();
+        const expireAt = Math.floor(Date.now() / 1000) + 3600; // Channel expires in 1 hour
+
+        createdChannels.push({ channel, expireAt });
+
+        var uid = req.query.uid ? req.query.uid : 0;
+        var expiredTs = expireAt;
+
+        console.log(`Creating token for channel: ${channel}`);
+
+        var token = ChatTokenBuilder.buildUserToken(APP_ID, APP_CERTIFICATE, uid, expiredTs);
+
+        return resp.json({ 'channel': channel, 'token': token });
+    } catch (error) {
+        console.error('Error creating channel:', error);
+        return resp.status(500).json({ 'error': 'Internal Server Error' });
+    }
+});
+
+// Endpoint to check if a channel exists
+app.get('/check_channel', nocache, (req, resp) => {
+    resp.header('Access-Control-Allow-Origin', "*");
+
+    var channel = req.query.channel;
+    if (!channel) {
+        return resp.status(500).json({ 'error': 'channel name is required' });
+    }
+
+    // Remove expired channels before checking
+    removeExpiredChannels();
+
+    if (createdChannels.some(c => c.channel === channel)) {
+        return resp.json({ 'exists': true });
+    } else {
+        return resp.json({ 'exists': false });
+    }
+});
+
 // Endpoint to generate a Chat Token with user privileges
 app.post('/generate_chat_token', nocache, (req, resp) => {
     const { userId, expire } = req.body;
@@ -66,33 +104,6 @@ app.post('/generate_chat_token', nocache, (req, resp) => {
         return resp.json({ uid: userId, token });
     } catch (error) {
         console.error('Error generating chat token:', error);
-        return resp.status(500).json({ 'error': 'Internal Server Error' });
-    }
-});
-
-// Endpoint to create a user in Agora Chat
-app.post('/create_user', nocache, async (req, resp) => {
-    const { uid, token, username, password } = req.body;
-
-    if (!uid || !token || !username || !password) {
-        return resp.status(400).json({ error: 'uid, token, username, and password are required' });
-    }
-
-    try {
-        const response = await axios.post(`${BASE_URL}/users`, {
-            username: username,
-            password: password
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        console.log(`Created user: ${username}`);
-        return resp.json(response.data);
-    } catch (error) {
-        console.error('Error creating user:', error.response ? error.response.data : error.message);
         return resp.status(500).json({ 'error': 'Internal Server Error' });
     }
 });
@@ -123,8 +134,9 @@ app.get('/access_token', nocache, (req, resp) => {
 
 app.listen(PORT, function () {
     console.log(`Service URL http://127.0.0.1:${PORT}/`);
+    console.log('Create Channel request, /create_channel');
+    console.log('Check Channel request, /check_channel?channel=[channel name]');
     console.log('Generate Chat Token request, /generate_chat_token');
-    console.log('Create User request, /create_user');
     console.log('Channel Key request, /access_token?uid=[user id]&channel=[channel name]');
     console.log('Channel Key with expiring time request, /access_token?uid=[user id]&channel=[channel name]&expiredTs=[expire ts]');
 });
