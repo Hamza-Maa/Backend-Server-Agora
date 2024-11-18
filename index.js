@@ -1,6 +1,5 @@
 var express = require('express');
-var { RtmTokenBuilder, RtmRole } = require('agora-access-token'); // Ensure correct import
-var { AccessToken, Priviledges } = require('agora-access-token'); // Ensure correct import
+var { AccessToken2, ServiceChat, PrivilegeChat } = require('agora-access-token'); // Ensure correct import
 var { v4: uuidv4 } = require('uuid'); // UUID library for generating unique IDs
 
 var PORT = process.env.PORT || 8080;
@@ -12,6 +11,7 @@ var APP_ID = process.env.APP_ID;
 var APP_CERTIFICATE = process.env.APP_CERTIFICATE;
 
 var app = express();
+app.use(express.json()); // Middleware to parse JSON bodies
 
 // List to store created channels
 var createdChannels = [];
@@ -49,8 +49,9 @@ app.get('/create_channel', nocache, (req, resp) => {
 
         console.log(`Creating token for channel: ${channel}`);
 
-        var token = new AccessToken(APP_ID, APP_CERTIFICATE, channel, uid);
-        token.addPriviledge(Priviledges.kJoinChannel, expiredTs);
+        var token = new AccessToken2(APP_ID, APP_CERTIFICATE, expiredTs);
+        token.addService(new AccessToken2.ServiceRtc(channel, uid));
+        token.addPriviledge(PrivilegeChat.PRIVILEGE_CHAT_USER, expiredTs);
 
         return resp.json({ 'channel': channel, 'token': token.build() });
     } catch (error) {
@@ -78,7 +79,7 @@ app.get('/check_channel', nocache, (req, resp) => {
     }
 });
 
-// Endpoint to generate a Chat App Temp Token
+// Endpoint to generate a Chat Token
 app.get('/generate_chat_token', nocache, (req, resp) => {
     resp.header('Access-Control-Allow-Origin', "*");
 
@@ -86,10 +87,14 @@ app.get('/generate_chat_token', nocache, (req, resp) => {
         var uid = uuidv4(); // Generate a unique UID
         const expireAt = Math.floor(Date.now() / 1000) + 3600; // Token expires in 1 hour
 
-        const token = RtmTokenBuilder.buildToken(APP_ID, APP_CERTIFICATE, uid, RtmRole.Rtm_User, expireAt);
-        console.log(`Generated Chat App Temp Token for uid: ${uid}`);
+        const token = new AccessToken2(APP_ID, APP_CERTIFICATE, expireAt);
+        const serviceChat = new ServiceChat(uid);
+        serviceChat.addPrivilegeChat(PrivilegeChat.PRIVILEGE_CHAT_USER, expireAt);
+        token.addService(serviceChat);
 
-        return resp.json({ 'uid': uid, 'token': token });
+        console.log(`Generated Chat Token for uid: ${uid}`);
+
+        return resp.json({ 'uid': uid, 'token': token.build() });
     } catch (error) {
         console.error('Error generating chat token:', error);
         return resp.status(500).json({ 'error': 'Internal Server Error' });
@@ -111,8 +116,10 @@ app.get('/access_token', nocache, (req, resp) => {
     try {
         console.log(`Generating token for channel: ${channel}`);
 
-        var token = new AccessToken(APP_ID, APP_CERTIFICATE, channel, uid);
-        token.addPriviledge(Priviledges.kJoinChannel, expiredTs);
+        var token = new AccessToken2(APP_ID, APP_CERTIFICATE, expiredTs);
+        token.addService(new AccessToken2.ServiceRtc(channel, uid));
+        token.addPriviledge(PrivilegeChat.PRIVILEGE_CHAT_USER, expiredTs);
+
         return resp.json({ 'token': token.build() });
     } catch (error) {
         console.error('Error generating token:', error);
@@ -121,7 +128,7 @@ app.get('/access_token', nocache, (req, resp) => {
 });
 
 app.listen(PORT, function () {
-    console.log('Service URL http://127.0.0.1:' + PORT + "/");
+    console.log(`Service URL http://127.0.0.1:${PORT}/`);
     console.log('Create Channel request, /create_channel');
     console.log('Check Channel request, /check_channel?channel=[channel name]');
     console.log('Generate Chat Token request, /generate_chat_token');
