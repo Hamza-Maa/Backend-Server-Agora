@@ -1,5 +1,5 @@
 var express = require('express');
-var { ChatTokenBuilder2, PrivilegeChat, ServiceChat } = require('agora-access-token');
+var { ChatTokenBuilder } = require('agora-token'); // Ensure correct import
 var { v4: uuidv4 } = require('uuid'); // UUID library for generating unique IDs
 
 var PORT = process.env.PORT || 8080;
@@ -37,9 +37,9 @@ function nocache(req, res, next) {
 // Function to generate a Chat token
 function generateChatToken(chatUserUuid, expire) {
     const expireAt = Math.floor(Date.now() / 1000) + expire;
-    const token = ChatTokenBuilder2.buildUserToken(APP_ID, APP_CERTIFICATE, chatUserUuid, expireAt);
 
     try {
+        const token = ChatTokenBuilder.buildUserToken(APP_ID, APP_CERTIFICATE, chatUserUuid, expireAt);
         return token;
     } catch (e) {
         console.error('Error generating chat token:', e);
@@ -62,7 +62,7 @@ app.get('/create_channel', nocache, (req, resp) => {
 
         console.log(`Creating token for channel: ${channel}`);
 
-        var token = ChatTokenBuilder2.buildUserToken(APP_ID, APP_CERTIFICATE, uid, expiredTs);
+        var token = ChatTokenBuilder.buildUserToken(APP_ID, APP_CERTIFICATE, uid, expiredTs);
 
         return resp.json({ 'channel': channel, 'token': token });
     } catch (error) {
@@ -104,7 +104,7 @@ app.post('/generate_chat_token', nocache, (req, resp) => {
         return resp.json({ uid: userId, token });
     } catch (error) {
         console.error('Error generating chat token:', error);
-        return resp.status(500).json({ error: 'Internal Server Error' });
+        return resp.status(500).json({ 'error': 'Internal Server Error' });
     }
 });
 
@@ -123,7 +123,7 @@ app.get('/access_token', nocache, (req, resp) => {
     try {
         console.log(`Generating token for channel: ${channel}`);
 
-        var token = ChatTokenBuilder2.buildUserToken(APP_ID, APP_CERTIFICATE, uid, expiredTs);
+        var token = ChatTokenBuilder.buildUserToken(APP_ID, APP_CERTIFICATE, uid, expiredTs);
 
         return resp.json({ 'token': token });
     } catch (error) {
