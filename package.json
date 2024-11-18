@@ -10,6 +10,7 @@
     "agora-token": "^2.0.3",
     "axios": "^1.7.7",
     "express": "^4.16.4",
+    "nocache": "^4.0.0",
     "uuid": "^11.0.3"
   },
   "author": "Agora.IO",
