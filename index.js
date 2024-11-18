@@ -1,6 +1,6 @@
 var express = require('express');
 var { RtmTokenBuilder, RtmRole } = require('agora-token');
-var { AccessToken, Priviledges } = require('agora-access-token'); // Ensure this is the correct import if needed
+var { AccessToken, Priviledges } = require('agora-access-token'); 
 var { v4: uuidv4 } = require('uuid');
 var axios = require('axios');
 
@@ -102,12 +102,12 @@ app.get('/generate_chat_token', nocache, (req, resp) => {
 });
 
 // Endpoint to create a user in Agora Chat
-app.post('/create_user', nocache, express.json(), async (req, resp) => { // Added express.json() middleware to parse JSON body
+app.post('/create_user', nocache, express.json(), async (req, resp) => {
     resp.header('Access-Control-Allow-Origin', "*");
 
     try {
-        var username = req.body.username; // Changed to req.body
-        var password = req.body.password; // Changed to req.body
+        var username = req.body.username;
+        var password = req.body.password;
 
         if (!username || !password) {
             console.error('Username and password are required');
