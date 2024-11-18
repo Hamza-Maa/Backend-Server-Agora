@@ -1,6 +1,7 @@
 var express = require('express');
-var { AccessToken } = require('agora-access-token');
+var { AccessToken, RtmTokenBuilder, RtmRole } = require('agora-access-token');
 var { Token, Priviledges } = AccessToken;
+var { v4: uuidv4 } = require('uuid'); // UUID library for generating unique IDs
 
 var PORT = process.env.PORT || 8080;
 
@@ -77,6 +78,24 @@ app.get('/check_channel', nocache, (req, resp) => {
     }
 });
 
+// Endpoint to generate a Chat App Temp Token
+app.get('/generate_chat_token', nocache, (req, resp) => {
+    resp.header('Access-Control-Allow-Origin', "*");
+
+    try {
+        var uid = uuidv4(); // Generate a unique UID
+        const expireAt = Math.floor(Date.now() / 1000) + 3600; // Token expires in 1 hour
+
+        const token = RtmTokenBuilder.buildToken(APP_ID, APP_CERTIFICATE, uid, RtmRole.Rtm_User, expireAt);
+        console.log(`Generated Chat App Temp Token for uid: ${uid}`);
+
+        return resp.json({ 'uid': uid, 'token': token });
+    } catch (error) {
+        console.error('Error generating chat token:', error);
+        return resp.status(500).json({ 'error': 'Internal Server Error' });
+    }
+});
+
 // Existing endpoint to generate access token
 app.get('/access_token', nocache, (req, resp) => {
     resp.header('Access-Control-Allow-Origin', "*");
@@ -105,6 +124,7 @@ app.listen(PORT, function () {
     console.log('Service URL http://127.0.0.1:' + PORT + "/");
     console.log('Create Channel request, /create_channel');
     console.log('Check Channel request, /check_channel?channel=[channel name]');
+    console.log('Generate Chat Token request, /generate_chat_token');
     console.log('Channel Key request, /access_token?uid=[user id]&channel=[channel name]');
     console.log('Channel Key with expiring time request, /access_token?uid=[user id]&channel=[channel name]&expiredTs=[expire ts]');
 });
