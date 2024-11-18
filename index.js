@@ -27,6 +27,7 @@ function removeExpiredChannels() {
     createdChannels = createdChannels.filter(channel => channel.expireAt > now);
 }
 
+// Define the nocache function
 function nocache(req, res, next) {
     res.header('Cache-Control', 'private, no-cache, no-store, must-revalidate');
     res.header('Expires', '-1');
@@ -86,7 +87,7 @@ app.get('/check_channel', nocache, (req, resp) => {
     if (createdChannels.some(c => c.channel === channel)) {
         return resp.json({ 'exists': true });
     } else {
-        return resp.json({ 'exists': false' });
+        return resp.json({ 'exists': false });
     }
 });
 
