@@ -1,23 +1,29 @@
-var express = require('express');
-var { AccessToken } = require('agora-access-token');
-var { Token, Priviledges } = AccessToken;
+const express = require('express');
+const { AccessToken } = require('agora-access-token');
+const { Token, Priviledges } = AccessToken;
 
-var PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8080;
 
 if (!(process.env.APP_ID && process.env.APP_CERTIFICATE)) {
     throw new Error('You must define an APP_ID and APP_CERTIFICATE');
 }
-var APP_ID = process.env.APP_ID;
-var APP_CERTIFICATE = process.env.APP_CERTIFICATE;
+const APP_ID = process.env.APP_ID;
+const APP_CERTIFICATE = process.env.APP_CERTIFICATE;
 
-var app = express();
+const app = express();
 
-// List to store created channels
-var createdChannels = [];
+// List to store created channels with their expiration times
+let createdChannels = [];
 
 // Function to generate a random channel name
 function generateRandomChannelName() {
     return 'channel_' + Math.floor(Math.random() * 1000000);
+}
+
+// Function to remove expired channels
+function removeExpiredChannels() {
+    const now = Date.now();
+    createdChannels = createdChannels.filter(channel => channel.expireAt > now);
 }
 
 function nocache(req, res, next) {
@@ -31,13 +37,15 @@ function nocache(req, res, next) {
 app.get('/create_channel', nocache, (req, resp) => {
     resp.header('Access-Control-Allow-Origin', "*");
 
-    var channel = generateRandomChannelName();
-    createdChannels.push(channel);
+    const channel = generateRandomChannelName();
+    const expireAt = Date.now() + 3600000; // Channel expires in 1 hour
 
-    var uid = req.query.uid ? req.query.uid : 0;
-    var expiredTs = req.query.expiredTs ? req.query.expiredTs : 0;
+    createdChannels.push({ channel, expireAt });
 
-    var token = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
+    const uid = req.query.uid ? req.query.uid : 0;
+    const expiredTs = req.query.expiredTs ? req.query.expiredTs : expireAt;
+
+    const token = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
     token.addPriviledge(Priviledges.kJoinChannel, expiredTs);
 
     return resp.json({ 'channel': channel, 'token': token.build() });
@@ -47,12 +55,15 @@ app.get('/create_channel', nocache, (req, resp) => {
 app.get('/check_channel', nocache, (req, resp) => {
     resp.header('Access-Control-Allow-Origin', "*");
 
-    var channel = req.query.channel;
+    const channel = req.query.channel;
     if (!channel) {
         return resp.status(500).json({ 'error': 'channel name is required' });
     }
 
-    if (createdChannels.includes(channel)) {
+    // Remove expired channels before checking
+    removeExpiredChannels();
+
+    if (createdChannels.some(c => c.channel === channel)) {
         return resp.json({ 'exists': true });
     } else {
         return resp.json({ 'exists': false });
@@ -63,15 +74,15 @@ app.get('/check_channel', nocache, (req, resp) => {
 app.get('/access_token', nocache, (req, resp) => {
     resp.header('Access-Control-Allow-Origin', "*");
 
-    var channel = req.query.channel;
+    const channel = req.query.channel;
     if (!channel) {
         return resp.status(500).json({ 'error': 'channel name is required' });
     }
 
-    var uid = req.query.uid ? req.query.uid : 0;
-    var expiredTs = req.query.expiredTs ? req.query.expiredTs : 0;
+    const uid = req.query.uid ? req.query.uid : 0;
+    const expiredTs = req.query.expiredTs ? req.query.expiredTs : 0;
 
-    var token = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
+    const token = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
     token.addPriviledge(Priviledges.kJoinChannel, expiredTs);
     return resp.json({ 'token': token.build() });
 });
