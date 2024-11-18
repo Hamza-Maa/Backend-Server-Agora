@@ -1,6 +1,7 @@
+require('dotenv').config();
 var express = require('express');
-var { ChatTokenBuilder } = require('agora-token'); // Ensure correct import
-var { v4: uuidv4 } = require('uuid'); // UUID library for generating unique IDs
+var { ChatTokenBuilder } = require('agora-token'); 
+var { v4: uuidv4 } = require('uuid'); 
 var axios = require('axios');
 
 var PORT = process.env.PORT || 8080;
@@ -15,7 +16,7 @@ var APP_NAME = '1432932'; // Your Agora app name
 var BASE_URL = `https://a71.chat.agora.io/${ORG_NAME}/${APP_NAME}`;
 
 var app = express();
-app.use(express.json()); // Middleware to parse JSON bodies
+app.use(express.json()); 
 
 // List to store created channels
 var createdChannels = [];
@@ -27,11 +28,10 @@ function generateRandomChannelName() {
 
 // Function to remove expired channels
 function removeExpiredChannels() {
-    const now = Math.floor(Date.now() / 1000); // Current time in seconds
+    const now = Math.floor(Date.now() / 1000); 
     createdChannels = createdChannels.filter(channel => channel.expireAt > now);
 }
 
-// Define the nocache function
 function nocache(req, res, next) {
     res.header('Cache-Control', 'private, no-cache, no-store, must-revalidate');
     res.header('Expires', '-1');
@@ -45,6 +45,7 @@ function generateChatToken(chatUserUuid, expire) {
 
     try {
         const token = ChatTokenBuilder.buildUserToken(APP_ID, APP_CERTIFICATE, chatUserUuid, expireAt);
+        console.log(`Generated Chat Token: ${token}`);
         return token;
     } catch (e) {
         console.error('Error generating chat token:', e);
@@ -58,11 +59,11 @@ app.get('/create_channel', nocache, (req, resp) => {
 
     try {
         var channel = generateRandomChannelName();
-        const expireAt = Math.floor(Date.now() / 1000) + 3600; // Channel expires in 1 hour
+        const expireAt = Math.floor(Date.now() / 1000) + 3600; 
 
         createdChannels.push({ channel, expireAt });
 
-        var uid = req.query.uid ? req.query.uid : uuidv4(); // Generate a unique UID if not provided
+        var uid = req.query.uid ? req.query.uid : uuidv4(); 
         var expiredTs = expireAt;
 
         console.log(`Creating token for channel: ${channel}`);

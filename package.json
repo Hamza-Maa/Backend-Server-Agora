@@ -9,6 +9,7 @@
     "agora-access-token": "^1.0.2",
     "agora-token": "^2.0.3",
     "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
     "express": "^4.16.4",
     "nocache": "^4.0.0",
     "uuid": "^11.0.3"
