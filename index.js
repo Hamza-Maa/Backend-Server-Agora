@@ -1,6 +1,6 @@
 var express = require('express');
-var { AccessToken, RtmTokenBuilder, RtmRole } = require('agora-access-token');
-var { Token, Priviledges } = AccessToken;
+var { RtmTokenBuilder, RtmRole } = require('agora-token');
+var { AccessToken, Priviledges } = require('agora-access-token'); // Ensure this is the correct import if needed
 var { v4: uuidv4 } = require('uuid');
 var axios = require('axios');
 
@@ -54,7 +54,7 @@ app.get('/create_channel', nocache, (req, resp) => {
 
         console.log(`Creating token for channel: ${channel}`);
 
-        var token = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
+        var token = new AccessToken(APP_ID, APP_CERTIFICATE, channel, uid);
         token.addPriviledge(Priviledges.kJoinChannel, expiredTs);
 
         return resp.json({ 'channel': channel, 'token': token.build() });
@@ -153,7 +153,7 @@ app.get('/access_token', nocache, (req, resp) => {
     try {
         console.log(`Generating token for channel: ${channel}`);
 
-        var token = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
+        var token = new AccessToken(APP_ID, APP_CERTIFICATE, channel, uid);
         token.addPriviledge(Priviledges.kJoinChannel, expiredTs);
         return resp.json({ 'token': token.build() });
     } catch (error) {
