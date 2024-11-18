@@ -1,7 +1,8 @@
 var express = require('express');
 var { AccessToken, RtmTokenBuilder, RtmRole } = require('agora-access-token');
 var { Token, Priviledges } = AccessToken;
-var { v4: uuidv4 } = require('uuid'); // UUID library for generating unique IDs
+var { v4: uuidv4 } = require('uuid');
+var axios = require('axios');
 
 var PORT = process.env.PORT || 8080;
 
@@ -12,6 +13,10 @@ var APP_ID = process.env.APP_ID;
 var APP_CERTIFICATE = process.env.APP_CERTIFICATE;
 
 var app = express();
+
+const ORG_NAME = "711241378";
+const APP_NAME = "1432932";
+const HOST = "a71.chat.agora.io";
 
 // List to store created channels
 var createdChannels = [];
@@ -96,6 +101,40 @@ app.get('/generate_chat_token', nocache, (req, resp) => {
     }
 });
 
+// Endpoint to create a user in Agora Chat
+app.post('/create_user', nocache, async (req, resp) => {
+    resp.header('Access-Control-Allow-Origin', "*");
+
+    try {
+        var username = req.query.username;
+        var password = req.query.password;
+
+        if (!username || !password) {
+            return resp.status(400).json({ 'error': 'username and password are required' });
+        }
+
+        // Generate Chat App Temp Token
+        const expireAt = Math.floor(Date.now() / 1000) + 3600; // Token expires in 1 hour
+        const token = RtmTokenBuilder.buildToken(APP_ID, APP_CERTIFICATE, "admin", RtmRole.Rtm_User, expireAt);
+
+        // Create user in Agora Chat
+        const response = await axios.post(`https://${HOST}/${ORG_NAME}/${APP_NAME}/users`, {
+            username: username,
+            password: password
+        }, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        return resp.json(response.data);
+    } catch (error) {
+        console.error('Error creating user:', error.response ? error.response.data : error.message);
+        return resp.status(500).json({ 'error': 'Internal Server Error' });
+    }
+});
+
 // Existing endpoint to generate access token
 app.get('/access_token', nocache, (req, resp) => {
     resp.header('Access-Control-Allow-Origin', "*");
@@ -125,6 +164,7 @@ app.listen(PORT, function () {
     console.log('Create Channel request, /create_channel');
     console.log('Check Channel request, /check_channel?channel=[channel name]');
     console.log('Generate Chat Token request, /generate_chat_token');
+    console.log('Create User request, /create_user?username=[username]&password=[password]');
     console.log('Channel Key request, /access_token?uid=[user id]&channel=[channel name]');
     console.log('Channel Key with expiring time request, /access_token?uid=[user id]&channel=[channel name]&expiredTs=[expire ts]');
 });
