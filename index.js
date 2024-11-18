@@ -102,20 +102,22 @@ app.get('/generate_chat_token', nocache, (req, resp) => {
 });
 
 // Endpoint to create a user in Agora Chat
-app.post('/create_user', nocache, async (req, resp) => {
+app.post('/create_user', nocache, express.json(), async (req, resp) => { // Added express.json() middleware to parse JSON body
     resp.header('Access-Control-Allow-Origin', "*");
 
     try {
-        var username = req.query.username;
-        var password = req.query.password;
+        var username = req.body.username; // Changed to req.body
+        var password = req.body.password; // Changed to req.body
 
         if (!username || !password) {
+            console.error('Username and password are required');
             return resp.status(400).json({ 'error': 'username and password are required' });
         }
 
         // Generate Chat App Temp Token
         const expireAt = Math.floor(Date.now() / 1000) + 3600; // Token expires in 1 hour
         const token = RtmTokenBuilder.buildToken(APP_ID, APP_CERTIFICATE, "admin", RtmRole.Rtm_User, expireAt);
+        console.log(`Generated token for admin`);
 
         // Create user in Agora Chat
         const response = await axios.post(`https://${HOST}/${ORG_NAME}/${APP_NAME}/users`, {
@@ -128,6 +130,7 @@ app.post('/create_user', nocache, async (req, resp) => {
             }
         });
 
+        console.log(`User created: ${username}`);
         return resp.json(response.data);
     } catch (error) {
         console.error('Error creating user:', error.response ? error.response.data : error.message);
@@ -164,7 +167,7 @@ app.listen(PORT, function () {
     console.log('Create Channel request, /create_channel');
     console.log('Check Channel request, /check_channel?channel=[channel name]');
     console.log('Generate Chat Token request, /generate_chat_token');
-    console.log('Create User request, /create_user?username=[username]&password=[password]');
+    console.log('Create User request, /create_user');
     console.log('Channel Key request, /access_token?uid=[user id]&channel=[channel name]');
     console.log('Channel Key with expiring time request, /access_token?uid=[user id]&channel=[channel name]&expiredTs=[expire ts]');
 });
