@@ -10,9 +10,9 @@ if (!(process.env.APP_ID && process.env.APP_CERTIFICATE)) {
 }
 var APP_ID = process.env.APP_ID;
 var APP_CERTIFICATE = process.env.APP_CERTIFICATE;
-var ORG_NAME = 'your_org_name'; // Your Agora organization name
-var APP_NAME = 'your_app_name'; // Your Agora app name
-var BASE_URL = `https://your_rest_api_domain/${ORG_NAME}/${APP_NAME}`;
+var ORG_NAME = '711241378'; // Your Agora organization name
+var APP_NAME = '1432932'; // Your Agora app name
+var BASE_URL = `https://a71.chat.agora.io/${ORG_NAME}/${APP_NAME}`;
 
 var app = express();
 app.use(express.json()); // Middleware to parse JSON bodies
