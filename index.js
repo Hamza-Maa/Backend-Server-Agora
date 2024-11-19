@@ -1,5 +1,5 @@
 const express = require('express');
-const { RtcTokenBuilder, RtcRole, RtmTokenBuilder, RtmRole, ChatTokenBuilder } = require('agora-token');
+const { RtcTokenBuilder, RtcRole, RtmTokenBuilder, ChatTokenBuilder } = require('agora-token');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
@@ -36,6 +36,13 @@ function nocache(req, res, next) {
 
 // Automatically remove expired channels every 5 minutes
 setInterval(removeExpiredChannels, 5 * 60 * 1000);
+
+// Define Role object
+const Role = {
+    Rtm_User: 1,
+    Role_Publisher: 1,
+    Role_Subscriber: 2
+};
 
 // Endpoint to generate an App Token and userUuid
 app.post('/fetch_app_token', (req, res) => {
@@ -117,7 +124,7 @@ app.get('/create_channel', nocache, (req, resp) => {
             APP_ID,
             APP_CERTIFICATE,
             uid, // Use string-based userId for RTM
-            RtmRole.Rtm_User,
+            Role.Rtm_User,
             expireAt
         );
 
@@ -183,7 +190,7 @@ app.get('/rtm_token', nocache, (req, resp) => {
 
     try {
         const expirationInSeconds = 3600; // Token validity (1 hour)
-        const rtmToken = RtmTokenBuilder.buildToken(APP_ID, APP_CERTIFICATE, `user_${userId}`, RtmRole.Rtm_User, expirationInSeconds);
+        const rtmToken = RtmTokenBuilder.buildToken(APP_ID, APP_CERTIFICATE, `user_${userId}`, Role.Rtm_User, expirationInSeconds);
 
         resp.json({
             token: rtmToken,
