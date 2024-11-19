@@ -41,10 +41,10 @@ function nocache(req, res, next) {
 
 // Function to generate a Chat token
 function generateChatToken(chatUserUuid, expire) {
-    const expireAt = Math.floor(Date.now() / 1000) + expire;
+
 
     try {
-        const token = ChatTokenBuilder.buildUserToken(APP_ID, APP_CERTIFICATE, chatUserUuid, expireAt);
+        const token = ChatTokenBuilder.buildUserToken(APP_ID, APP_CERTIFICATE, chatUserUuid, 600);
         console.log(`Generated Chat Token: ${token}`);
         return token;
     } catch (e) {
