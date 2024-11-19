@@ -100,24 +100,36 @@ app.get('/create_channel', nocache, (req, resp) => {
 
         createdChannels.push({ channel, expireAt });
 
-        const uid = req.query.uid || uuidv4(); // Use a valid uid or generate a new one
-        const rtcToken = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
-        rtcToken.addPriviledge(Priviledges.kJoinChannel, expireAt);
+        // Use the provided uid or default to 0
+        const uid = req.query.uid ? req.query.uid : "0";
 
-        // Generate RTM token using the same uid for chat
-        const rtmToken = RtmTokenBuilder.buildToken(APP_ID, APP_CERTIFICATE, `user_${uid}`, RtmRole.PUBLISHER, 3600);
+        // Generate RTC Token
+        const rtcToken = RtcTokenBuilder.buildTokenWithUid(
+            APP_ID,
+            APP_CERTIFICATE,
+            channel,
+            parseInt(uid), // Ensure uid is an integer
+            RtcRole.PUBLISHER,
+            expireAt
+        );
+
+        // Generate RTM Token
+        const rtmToken = RtmTokenBuilder.buildToken(
+            APP_ID,
+            APP_CERTIFICATE,
+            uid, // Use string-based userId for RTM
+            RtmRole.PUBLISHER,
+            expireAt
+        );
 
         console.log(`Created channel: ${channel}`);
-        resp.json({
-            channel,
-            rtcToken: rtcToken.build(),
-            rtmToken
-        });
+        resp.json({ channel, rtcToken, rtmToken });
     } catch (error) {
         console.error('Error creating channel:', error);
         resp.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 // Endpoint to check if a channel exists
 app.get('/check_channel', nocache, (req, resp) => {
