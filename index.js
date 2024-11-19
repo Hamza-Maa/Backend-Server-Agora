@@ -1,5 +1,6 @@
 const express = require('express');
-const { RtcTokenBuilder, RtcRole, RtmTokenBuilder, RtmRole } = require('agora-token');
+const { RtcTokenBuilder, RtcRole, RtmTokenBuilder } = require('agora-token');
+const { Role: RtmRole } = require('agora-token').RtmTokenBuilder; // Adjusted import according to sample
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
@@ -65,42 +66,6 @@ app.post('/fetch_app_token', (req, res) => {
     }
 });
 
-// Endpoint to create a user in Agora Chat
-app.post('/create_user', async (req, res) => {
-    try {
-        const { token } = req.body;
-        if (!token) {
-            return res.status(400).json({ error: 'App Token is required.' });
-        }
-
-        const username = `user_${Math.random().toString(36).substr(2, 8)}`;
-        const password = `pass_${Math.random().toString(36).substr(2, 8)}`;
-
-        const response = await axios.post(
-            `${BASE_URL}/users`,
-            { username, password },
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-
-        res.json({
-            username,
-            password,
-            ...response.data // Include all details from Agora's response
-        });
-    } catch (error) {
-        console.error('Error creating user:', error.response?.data || error.message);
-        res.status(500).json({
-            error: 'Failed to create user',
-            details: error.response?.data || error.message
-        });
-    }
-});
-
 // Endpoint to create a video call channel and generate token for RTC and RTM
 app.get('/create_channel', nocache, (req, resp) => {
     try {
@@ -121,12 +86,12 @@ app.get('/create_channel', nocache, (req, resp) => {
             expireAt
         );
 
-        // Generate RTM token (using a unique user ID or UUID)
+        // Generate RTM token using the correct Role constant (RtmRole.User in this case)
         const rtmToken = RtmTokenBuilder.buildToken(
             APP_ID,
             APP_CERTIFICATE,
             uuidv4(), // Generate a unique user ID for RTM
-            RtmRole.Rtm_User,
+            RtmRole.Rtm_User, // Ensure the correct role is used for RTM
             expireAt
         );
 
@@ -134,7 +99,7 @@ app.get('/create_channel', nocache, (req, resp) => {
         resp.json({ channel, rtcToken, rtmToken });
     } catch (error) {
         console.error('Error creating channel:', error);
-        resp.status(500).json({ error: 'Internal Server Error' });
+        resp.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
 });
 
