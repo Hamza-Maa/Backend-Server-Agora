@@ -41,7 +41,7 @@ function nocache(req, res, next) {
 
 // Function to generate a Chat token
 function generateChatToken(chatUserUuid, expire) {
-    const expireAt = Math.floor(Date.now()) + expire;
+    const expireAt = Math.floor(Date.now() / 1000) + expire;
 
     try {
         const token = ChatTokenBuilder.buildUserToken(APP_ID, APP_CERTIFICATE, chatUserUuid, expireAt);
@@ -138,7 +138,7 @@ app.post('/create_user', nocache, async (req, resp) => {
         return resp.json(response.data);
     } catch (error) {
         console.error('Error creating user:', error.response ? error.response.data : error.message);
-        return resp.status(500).json({ 'error': 'Internal Server Error:\n ' +error});
+        return resp.status(500).json({ 'error': 'Internal Server Error\n'+error });
     }
 });
 
