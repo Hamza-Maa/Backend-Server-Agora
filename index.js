@@ -1,6 +1,6 @@
 const express = require('express');
 const { ChatTokenBuilder } = require('agora-token');
-const { AccessToken, RtmTokenBuilder, RtmRole } = require('agora-access-token');
+const { RtcTokenBuilder, AccessToken, RtmTokenBuilder, RtmRole,  RtcRole } = require('agora-access-token');
 const { Token, Priviledges } = AccessToken;
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
