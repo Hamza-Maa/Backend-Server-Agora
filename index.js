@@ -22,9 +22,85 @@ function generateRandomChannelName() {
 
 // Function to remove expired channels
 function removeExpiredChannels() {
-    const now = Math.floor(Date.now() / 1000);
+    const now = Math.floor(Date.now() / 1000); // Current time in seconds
     createdChannels = createdChannels.filter(channel => channel.expireAt > now);
 }
+
+function nocache(req, res, next) {
+    res.header('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+    res.header('Expires', '-1');
+    res.header('Pragma', 'no-cache');
+    next();
+}
+// Endpoint to generate a random channel name and its access token
+app.get('/create_channel', nocache, (req, resp) => {
+    resp.header('Access-Control-Allow-Origin', "*");
+
+    try {
+        var channel = generateRandomChannelName();
+        const expireAt = Math.floor(Date.now() / 1000) + 3600; // Channel expires in 1 hour
+
+        createdChannels.push({ channel, expireAt });
+
+        var uid = req.query.uid ? req.query.uid : 0;
+        var expiredTs = expireAt;
+
+        console.log(`Creating token for channel: ${channel}`);
+
+        var token = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
+        token.addPriviledge(Priviledges.kJoinChannel, expiredTs);
+
+        return resp.json({ 'channel': channel, 'token': token.build() });
+    } catch (error) {
+        console.error('Error creating channel:', error);
+        return resp.status(500).json({ 'error': 'Internal Server Error' });
+    }
+});
+
+// Endpoint to check if a channel exists
+app.get('/check_channel', nocache, (req, resp) => {
+    resp.header('Access-Control-Allow-Origin', "*");
+
+    var channel = req.query.channel;
+    if (!channel) {
+        return resp.status(500).json({ 'error': 'channel name is required' });
+    }
+
+    // Remove expired channels before checking
+    removeExpiredChannels();
+
+    if (createdChannels.some(c => c.channel === channel)) {
+        return resp.json({ 'exists': true });
+    } else {
+        return resp.json({ 'exists': false });
+    }
+});
+
+// Existing endpoint to generate access token
+app.get('/access_token', nocache, (req, resp) => {
+    resp.header('Access-Control-Allow-Origin', "*");
+
+    var channel = req.query.channel;
+    if (!channel) {
+        return resp.status(500).json({ 'error': 'channel name is required' });
+    }
+
+    var uid = req.query.uid ? req.query.uid : 0;
+    var expiredTs = req.query.expiredTs ? req.query.expiredTs : 0;
+
+    try {
+        console.log(`Generating token for channel: ${channel}`);
+
+        var token = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
+        token.addPriviledge(Priviledges.kJoinChannel, expiredTs);
+        return resp.json({ 'token': token.build() });
+    } catch (error) {
+        console.error('Error generating token:', error);
+        return resp.status(500).json({ 'error': 'Internal Server Error' });
+    }
+});
+
+
 
 // Endpoint to generate an App Token and userUuid
 app.post('/fetch_app_token', (req, res) => {
@@ -81,64 +157,6 @@ app.post('/create_user', async (req, res) => {
     }
 });
 
-// Endpoint to create a video call channel and generate token for RTC
-app.get('/create_channel', (req, resp) => {
-    try {
-        const channel = generateRandomChannelName();
-        const expireAt = Math.floor(Date.now() / 1000) + 3600; // Token expiration time (1 hour)
-
-        createdChannels.push({ channel, expireAt });
-
-        // Generate a random user ID for this channel or use the provided query uid
-        const uid = req.query.uid ? req.query.uid : uuidv4();
-        const token = ChatTokenBuilder.buildUserToken(APP_ID, APP_CERTIFICATE, uid, expireAt);
-
-        resp.json({ channel, token });
-    } catch (error) {
-        console.error('Error creating channel:', error);
-        resp.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// Endpoint to check if a channel exists
-app.get('/check_channel', (req, resp) => {
-    const channel = req.query.channel;
-    if (!channel) {
-        return resp.status(500).json({ error: 'Channel name is required' });
-    }
-
-    // Remove expired channels before checking
-    removeExpiredChannels();
-
-    if (createdChannels.some(c => c.channel === channel)) {
-        return resp.json({ exists: true });
-    } else {
-        return resp.json({ exists: false });
-    }
-});
-
-// Endpoint to generate access token for a given channel and user
-app.get('/access_token', (req, resp) => {
-    const channel = req.query.channel;
-    const uid = req.query.uid || 0; // Default to 0 if no user ID is provided
-    const expiredTs = req.query.expiredTs || 0;
-
-    if (!channel) {
-        return resp.status(500).json({ error: 'Channel name is required' });
-    }
-
-    try {
-        console.log(`Generating token for channel: ${channel}`);
-
-        // Generate RTC token for the given user in the channel
-        const token = ChatTokenBuilder.buildUserToken(APP_ID, APP_CERTIFICATE, uid, expiredTs);
-
-        return resp.json({ token });
-    } catch (error) {
-        console.error('Error generating token:', error);
-        return resp.status(500).json({ error: 'Internal Server Error' });
-    }
-});
 
 // Start the server
 const PORT = process.env.PORT || 8080;
@@ -147,7 +165,8 @@ app.listen(PORT, () => {
     console.log('Available Endpoints:');
     console.log('/fetch_app_token - Generate an App Token');
     console.log('/create_user - Create a new Agora chat user');
-    console.log('/create_channel - Create a new video call channel');
-    console.log('/check_channel?channel=[channel_name] - Check if a channel exists');
-    console.log('/access_token?channel=[channel_name]&uid=[user_id] - Get RTC token for a channel');
+    console.log('Create Channel request, /create_channel');
+    console.log('Check Channel request, /check_channel?channel=[channel name]');
+    console.log('Channel Key request, /access_token?uid=[user id]&channel=[channel name]');
+    console.log('Channel Key with expiring time request, /access_token?uid=[user id]&channel=[channel name]&expiredTs=[expire ts]');
 });
