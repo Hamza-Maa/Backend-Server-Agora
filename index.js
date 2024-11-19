@@ -46,7 +46,7 @@ app.post('/fetch_app_token', (req, res) => {
     }
 });
 
-// Endpoint to create a user in Agora Chat
+// Improved error handling to log response
 app.post('/create_user', async (req, res) => {
     try {
         const { token } = req.body;
@@ -68,11 +68,10 @@ app.post('/create_user', async (req, res) => {
             }
         );
 
-        // Pass through the entire response with additional fields
         res.json({
             username,
             password,
-            ...response.data // Include all details from Agora's response
+            ...response.data
         });
     } catch (error) {
         console.error('Error creating user:', error.response?.data || error.message);
@@ -82,6 +81,7 @@ app.post('/create_user', async (req, res) => {
         });
     }
 });
+
 
 // Endpoint to create a video call channel and generate token for RTC
 app.get('/create_channel', (req, resp) => {
