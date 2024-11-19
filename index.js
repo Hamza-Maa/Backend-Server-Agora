@@ -1,17 +1,16 @@
-var express = require('express');
-var { AccessToken, RtmTokenBuilder, RtmRole } = require('agora-access-token');
-var { Token, Priviledges } = AccessToken;
-var { v4: uuidv4 } = require('uuid'); // UUID library for generating unique IDs
+const express = require('express');
+const { ChatTokenBuilder } = require('agora-token');
+const axios = require('axios');
+const { v4: uuidv4 } = require('uuid');
+require('dotenv').config();
+//should work now
+const app = express();
+app.use(express.json());
 
-var PORT = process.env.PORT || 8080;
-
-if (!(process.env.APP_ID && process.env.APP_CERTIFICATE)) {
-    throw new Error('You must define an APP_ID and APP_CERTIFICATE');
-}
-var APP_ID = process.env.APP_ID;
-var APP_CERTIFICATE = process.env.APP_CERTIFICATE;
-
-var app = express();
+// App ID and App Certificate from the Agora Console (ensure you have .env for this)
+const APP_ID = process.env.APP_ID || '2fdd33b34d5e429995a6f3936aded6a7';
+const APP_CERTIFICATE = process.env.APP_CERTIFICATE || 'af9bb28245fc468c9f76aa277fd1e87c';
+const BASE_URL = 'https://a71.chat.agora.io/711241378/1432932'; // Base URL for Agora Chat API
 
 // List to store created channels
 var createdChannels = [];
@@ -78,24 +77,6 @@ app.get('/check_channel', nocache, (req, resp) => {
     }
 });
 
-// Endpoint to generate a Chat App Temp Token
-app.get('/generate_chat_token', nocache, (req, resp) => {
-    resp.header('Access-Control-Allow-Origin', "*");
-
-    try {
-        var uid = uuidv4(); // Generate a unique UID
-        const expireAt = Math.floor(Date.now() / 1000) + 3600; // Token expires in 1 hour
-
-        const token = RtmTokenBuilder.buildToken(APP_ID, APP_CERTIFICATE, uid, RtmRole.Rtm_User, expireAt);
-        console.log(`Generated Chat App Temp Token for uid: ${uid}`);
-
-        return resp.json({ 'uid': uid, 'token': token });
-    } catch (error) {
-        console.error('Error generating chat token:', error);
-        return resp.status(500).json({ 'error': 'Internal Server Error' });
-    }
-});
-
 // Existing endpoint to generate access token
 app.get('/access_token', nocache, (req, resp) => {
     resp.header('Access-Control-Allow-Origin', "*");
@@ -120,11 +101,70 @@ app.get('/access_token', nocache, (req, resp) => {
     }
 });
 
-app.listen(PORT, function () {
-    console.log('Service URL http://127.0.0.1:' + PORT + "/");
-    console.log('Create Channel request, /create_channel');
-    console.log('Check Channel request, /check_channel?channel=[channel name]');
-    console.log('Generate Chat Token request, /generate_chat_token');
-    console.log('Channel Key request, /access_token?uid=[user id]&channel=[channel name]');
-    console.log('Channel Key with expiring time request, /access_token?uid=[user id]&channel=[channel name]&expiredTs=[expire ts]');
+// Endpoint to generate an App Token and userUuid
+app.post('/fetch_app_token', (req, res) => {
+    try {
+        const expirationInSeconds = 3600; // Token validity (1 hour)
+        const userUuid = uuidv4(); // Generate a random userUuid
+        const appToken = ChatTokenBuilder.buildAppToken(APP_ID, APP_CERTIFICATE, expirationInSeconds);
+
+        res.json({
+            token: appToken,
+            userUuid,
+            expires_in: expirationInSeconds
+        });
+    } catch (error) {
+        console.error('Error generating App Token:', error);
+        res.status(500).json({ error: 'Failed to generate App Token' });
+    }
+});
+
+// Endpoint to create a user in Agora Chat
+app.post('/create_user', async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) {
+            return res.status(400).json({ error: 'App Token is required.' });
+        }
+
+        const username = `user_${Math.random().toString(36).substr(2, 8)}`;
+        const password = `pass_${Math.random().toString(36).substr(2, 8)}`;
+
+        const response = await axios.post(
+            `${BASE_URL}/users`,
+            { username, password },
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        // Pass through the entire response with additional fields
+        res.json({
+            username,
+            password,
+            ...response.data // Include all details from Agora's response
+        });
+    } catch (error) {
+        console.error('Error creating user:', error.response?.data || error.message);
+        res.status(500).json({
+            error: 'Failed to create user',
+            details: error.response?.data || error.message
+        });
+    }
+});
+
+
+// Start the server
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+    console.log('Available Endpoints:');
+    console.log('/fetch_app_token - Generate an App Token');
+    console.log('/create_user - Create a new Agora chat user');
+    console.log('/create_channel - Create a new video call channel');
+    console.log('/check_channel?channel=[channel_name] - Check if a channel exists');
+    console.log('/access_token?channel=[channel_name]&uid=[user_id] - Get RTC token for a channel');
 });
