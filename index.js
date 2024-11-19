@@ -138,7 +138,7 @@ app.post('/create_user', nocache, async (req, resp) => {
         return resp.json(response.data);
     } catch (error) {
         console.error('Error creating user:', error.response ? error.response.data : error.message);
-        return resp.status(500).json({ 'error': 'Internal Server Error' });
+        return resp.status(500).json({ 'error': 'Internal Server Error:\n ' +error});
     }
 });
 
