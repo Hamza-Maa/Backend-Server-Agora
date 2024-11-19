@@ -1,5 +1,5 @@
 const express = require('express');
-const { RtcTokenBuilder, RtcRole, RtmTokenBuilder, RtmRole } = require('agora-token');
+const { RtcTokenBuilder, RtcRole, RtmTokenBuilder, Role: RtmRole } = require('agora-token');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
@@ -126,7 +126,7 @@ app.get('/create_channel', nocache, (req, resp) => {
             APP_ID,
             APP_CERTIFICATE,
             uuidv4(), // Generate a unique user ID for RTM
-            RtmRole.Rtm_User, // Correctly reference RtmRole.Rtm_User here
+            RtmRole.PUBLISHER, // Correctly reference RtmRole here
             expireAt
         );
 
