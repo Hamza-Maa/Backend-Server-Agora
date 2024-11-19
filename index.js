@@ -1,5 +1,5 @@
 const express = require('express');
-const { RtcTokenBuilder, RtcRole, RtmTokenBuilder, Role: RtmRole } = require('agora-token');
+const { RtcTokenBuilder, RtcRole, RtmTokenBuilder, RtmRole, ChatTokenBuilder } = require('agora-token');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
@@ -42,20 +42,10 @@ app.post('/fetch_app_token', (req, res) => {
     try {
         const expirationInSeconds = 3600; // Token validity (1 hour)
         const userUuid = uuidv4(); // Generate a random userUuid
-        const currentTimestamp = Math.floor(Date.now() / 1000);
-
-        // Generate App Token using RTC and RTM token generation
-        const rtcToken = RtcTokenBuilder.buildTokenWithUid(
-            APP_ID,
-            APP_CERTIFICATE,
-            'dummy_channel', // A dummy channel for the App Token
-            0, // UID (0 means the app itself, as it's not specific to a user)
-            RtcRole.PUBLISHER,
-            currentTimestamp + expirationInSeconds
-        );
+        const appToken = ChatTokenBuilder.buildAppToken(APP_ID, APP_CERTIFICATE, expirationInSeconds);
 
         res.json({
-            token: rtcToken,
+            token: appToken,
             userUuid,
             expires_in: expirationInSeconds
         });
@@ -106,27 +96,28 @@ app.get('/create_channel', nocache, (req, resp) => {
     try {
         const channel = generateRandomChannelName();
         const expireAt = Math.floor(Date.now() / 1000) + 3600; // Channel expires in 1 hour
-        const uid = req.query.uid ? parseInt(req.query.uid) : 0; // Default to 0 if no UID provided
-        const currentTimestamp = Math.floor(Date.now() / 1000);
 
         createdChannels.push({ channel, expireAt });
 
-        // Generate RTC token
+        // Use the provided uid or default to 0
+        const uid = req.query.uid ? req.query.uid : "0";
+
+        // Generate RTC Token
         const rtcToken = RtcTokenBuilder.buildTokenWithUid(
             APP_ID,
             APP_CERTIFICATE,
             channel,
-            uid,
+            parseInt(uid), // Ensure uid is an integer
             RtcRole.PUBLISHER,
             expireAt
         );
 
-        // Generate RTM token using a unique user ID or UUID
+        // Generate RTM Token
         const rtmToken = RtmTokenBuilder.buildToken(
             APP_ID,
             APP_CERTIFICATE,
-            uuidv4(), // Generate a unique user ID for RTM
-            RtmRole.PUBLISHER, // Correctly reference RtmRole here
+            uid, // Use string-based userId for RTM
+            RtmRole.Rtm_User,
             expireAt
         );
 
@@ -152,6 +143,58 @@ app.get('/check_channel', nocache, (req, resp) => {
     resp.json({ exists });
 });
 
+// Endpoint to generate access token for a given channel and user
+app.get('/access_token', nocache, (req, resp) => {
+    const channel = req.query.channel;
+    const uid = req.query.uid || 0; // Default to 0 if no user ID is provided
+    const expiredTs = req.query.expiredTs || Math.floor(Date.now() / 1000) + 3600;
+
+    if (!channel) {
+        return resp.status(400).json({ error: 'Channel name is required' });
+    }
+
+    try {
+        console.log(`Generating token for channel: ${channel}`);
+
+        const token = RtcTokenBuilder.buildTokenWithUid(
+            APP_ID,
+            APP_CERTIFICATE,
+            channel,
+            uid,
+            RtcRole.PUBLISHER,
+            expiredTs
+        );
+
+        resp.json({ token });
+    } catch (error) {
+        console.error('Error generating token:', error);
+        resp.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Endpoint to generate an RTM token for chat
+app.get('/rtm_token', nocache, (req, resp) => {
+    const userId = req.query.userId; // User ID (UUID or custom user ID)
+    const channel = req.query.channel; // The specific channel for RTM
+
+    if (!userId || !channel) {
+        return resp.status(400).json({ error: 'User ID and channel are required' });
+    }
+
+    try {
+        const expirationInSeconds = 3600; // Token validity (1 hour)
+        const rtmToken = RtmTokenBuilder.buildToken(APP_ID, APP_CERTIFICATE, `user_${userId}`, RtmRole.Rtm_User, expirationInSeconds);
+
+        resp.json({
+            token: rtmToken,
+            expires_in: expirationInSeconds
+        });
+    } catch (error) {
+        console.error('Error generating RTM token:', error);
+        resp.status(500).json({ error: 'Failed to generate RTM token' });
+    }
+});
+
 // Start the server
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
@@ -161,4 +204,6 @@ app.listen(PORT, () => {
     console.log('/create_user - Create a new Agora chat user');
     console.log('/create_channel - Create a new video call channel');
     console.log('/check_channel?channel=[channel_name] - Check if a channel exists');
+    console.log('/access_token?channel=[channel_name]&uid=[user_id] - Get RTC token for a channel');
+    console.log('/rtm_token?userId=[user_id]&channel=[channel_name] - Get RTM token for a channel');
 });
