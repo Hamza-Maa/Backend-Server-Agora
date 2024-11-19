@@ -1,5 +1,6 @@
 const express = require('express');
 const { ChatTokenBuilder } = require('agora-token');
+const { Token, Priviledges } = require('agora-access-token');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
@@ -81,19 +82,20 @@ app.post('/create_user', async (req, res) => {
     }
 });
 
-// Endpoint to create a video call channel and generate token for RTC
+// New "Create Channel" Endpoint
 app.get('/create_channel', (req, resp) => {
     try {
         const channel = generateRandomChannelName();
-        const expireAt = Math.floor(Date.now() / 1000) + 3600; // Token expiration time (1 hour)
+        const expireAt = Math.floor(Date.now() / 1000) + 3600; // Channel expires in 1 hour
 
         createdChannels.push({ channel, expireAt });
 
-        // Generate a random user ID for this channel or use the provided query uid
-        const uid = req.query.uid ? req.query.uid : uuidv4();
-        const token = ChatTokenBuilder.buildUserToken(APP_ID, APP_CERTIFICATE, uid, expireAt);
+        const uid = req.query.uid ? req.query.uid : 0;
+        const token = new Token(APP_ID, APP_CERTIFICATE, channel, uid);
+        token.addPriviledge(Priviledges.kJoinChannel, expireAt);
 
-        resp.json({ channel, token });
+        console.log(`Created channel: ${channel}`);
+        resp.json({ channel, token: token.build() });
     } catch (error) {
         console.error('Error creating channel:', error);
         resp.status(500).json({ error: 'Internal Server Error' });
