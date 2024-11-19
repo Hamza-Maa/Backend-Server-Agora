@@ -1,5 +1,5 @@
 const express = require('express');
-const { AccessToken2, ServiceRtc, ServiceRtm } = require('agora-token');
+const { RtcTokenBuilder, RtcRole, RtmTokenBuilder, RtmRole } = require('agora-token');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
@@ -44,11 +44,18 @@ app.post('/fetch_app_token', (req, res) => {
         const userUuid = uuidv4(); // Generate a random userUuid
         const currentTimestamp = Math.floor(Date.now() / 1000);
 
-        // Create AccessToken2 for App
-        const token = new AccessToken2(APP_ID, APP_CERTIFICATE, currentTimestamp, expirationInSeconds);
+        // Generate App Token using RTC and RTM token generation
+        const rtcToken = RtcTokenBuilder.buildTokenWithUid(
+            APP_ID,
+            APP_CERTIFICATE,
+            'dummy_channel', // A dummy channel for the App Token
+            0, // UID (0 means the app itself, as it's not specific to a user)
+            RtcRole.PUBLISHER,
+            currentTimestamp + expirationInSeconds
+        );
 
         res.json({
-            token: token.build(),
+            token: rtcToken,
             userUuid,
             expires_in: expirationInSeconds
         });
@@ -104,18 +111,27 @@ app.get('/create_channel', nocache, (req, resp) => {
 
         createdChannels.push({ channel, expireAt });
 
-        // Create AccessToken2 and add RTC service
-        const rtcToken = new AccessToken2(APP_ID, APP_CERTIFICATE, currentTimestamp, 3600);
-        const rtcService = new ServiceRtc(channel, uid);
-        rtcToken.add_service(rtcService);
+        // Generate RTC token
+        const rtcToken = RtcTokenBuilder.buildTokenWithUid(
+            APP_ID,
+            APP_CERTIFICATE,
+            channel,
+            uid,
+            RtcRole.PUBLISHER,
+            expireAt
+        );
 
-        // Create AccessToken2 and add RTM service
-        const rtmToken = new AccessToken2(APP_ID, APP_CERTIFICATE, currentTimestamp, 3600);
-        const rtmService = new ServiceRtm(req.query.uid || uuidv4());
-        rtmToken.add_service(rtmService);
+        // Generate RTM token (using a unique user ID or UUID)
+        const rtmToken = RtmTokenBuilder.buildToken(
+            APP_ID,
+            APP_CERTIFICATE,
+            uuidv4(), // Generate a unique user ID for RTM
+            RtmRole.Rtm_User,
+            expireAt
+        );
 
         console.log(`Created channel: ${channel}`);
-        resp.json({ channel, rtcToken: rtcToken.build(), rtmToken: rtmToken.build() });
+        resp.json({ channel, rtcToken, rtmToken });
     } catch (error) {
         console.error('Error creating channel:', error);
         resp.status(500).json({ error: 'Internal Server Error' });
