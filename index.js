@@ -8,11 +8,9 @@ const app = express();
 app.use(express.json());
 
 // App ID and App Certificate from the Agora Console (ensure you have .env for this)
-const APP_ID = process.env.APP_ID;
-const APP_CERTIFICATE = process.env.APP_CERTIFICATE;
-const ORG_NAME = process.env.ORG_NAME;
-const APP_NAME = process.env.APP_NAME;
-var BASE_URL = `https://a71.chat.agora.io/${ORG_NAME}/${APP_NAME}`;//Base URL for Agora Chat API
+const APP_ID = process.env.APP_ID || '2fdd33b34d5e429995a6f3936aded6a7';
+const APP_CERTIFICATE = process.env.APP_CERTIFICATE || 'af9bb28245fc468c9f76aa277fd1e87c';
+const BASE_URL = 'https://a71.chat.agora.io/711241378/1432932'; // Base URL for Agora Chat API
 
 // List to store created channels
 var createdChannels = [];
@@ -46,7 +44,7 @@ app.post('/fetch_app_token', (req, res) => {
     }
 });
 
-// Improved error handling to log response
+// Endpoint to create a user in Agora Chat
 app.post('/create_user', async (req, res) => {
     try {
         const { token } = req.body;
@@ -68,10 +66,11 @@ app.post('/create_user', async (req, res) => {
             }
         );
 
+        // Pass through the entire response with additional fields
         res.json({
             username,
             password,
-            ...response.data
+            ...response.data // Include all details from Agora's response
         });
     } catch (error) {
         console.error('Error creating user:', error.response?.data || error.message);
@@ -81,7 +80,6 @@ app.post('/create_user', async (req, res) => {
         });
     }
 });
-
 
 // Endpoint to create a video call channel and generate token for RTC
 app.get('/create_channel', (req, resp) => {
@@ -145,7 +143,7 @@ app.get('/access_token', (req, resp) => {
 // Start the server
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-    console.log(`Server running at :${PORT}`);
+    console.log(`Server running at http://localhost:${PORT}`);
     console.log('Available Endpoints:');
     console.log('/fetch_app_token - Generate an App Token');
     console.log('/create_user - Create a new Agora chat user');
