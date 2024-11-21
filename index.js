@@ -99,37 +99,26 @@ app.post('/create_user', async (req, res) => {
 });
 
 // Endpoint to create a video call channel and generate token for RTC and RTM
+
 app.get('/create_channel', nocache, (req, resp) => {
     try {
         const channel = generateRandomChannelName();
-        const expireAt = Math.floor(Date.now() / 1000) + 3600; // Channel expires in 1 hour
+        const expireAt = Math.floor(Date.now() / 1000) + 3600;
 
         createdChannels.push({ channel, expireAt });
 
-        // Use the provided uid or default to 0
-        const uid = req.query.uid ? req.query.uid : "0";
+        const uid = parseInt(req.query.uid) || Math.floor(Math.random() * 1000000) + 1;
 
         // Generate RTC Token
         const rtcToken = RtcTokenBuilder.buildTokenWithUid(
             APP_ID,
             APP_CERTIFICATE,
             channel,
-            parseInt(uid), // Ensure uid is an integer
+            parseInt(uid),
             RtcRole.PUBLISHER,
             expireAt
         );
-
-        // Generate RTM Token
-        const rtmToken = RtmTokenBuilder.buildToken(
-            APP_ID,
-            APP_CERTIFICATE,
-            uid, // Use string-based userId for RTM
-            Role.Rtm_User,
-            expireAt
-        );
-
-        console.log(`Created channel: ${channel}`);
-        resp.json({ channel, rtcToken, rtmToken });
+        resp.json({ channel, rtcToken, uid });
     } catch (error) {
         console.error('Error creating channel:', error);
         resp.status(500).json({ error: 'Internal Server Error' });
@@ -150,7 +139,8 @@ app.get('/check_channel', nocache, (req, resp) => {
     resp.json({ exists });
 });
 
-// Endpoint to generate access token for a given channel and user
+// Endpoint to generate access token for a given channel and user 
+//designed to generate an RTC token for a user to join a particular video call channel
 app.get('/access_token', nocache, (req, resp) => {
     const channel = req.query.channel;
     const uid = req.query.uid || 0; // Default to 0 if no user ID is provided
@@ -181,26 +171,32 @@ app.get('/access_token', nocache, (req, resp) => {
 
 // Endpoint to generate an RTM token for chat
 app.get('/rtm_token', nocache, (req, resp) => {
-    const userId = req.query.userId; // User ID (UUID or custom user ID)
-    const channel = req.query.channel; // The specific channel for RTM
-
-    if (!userId || !channel) {
-        return resp.status(400).json({ error: 'User ID and channel are required' });
+    const userId = req.query.userId;
+  
+    if (!userId) {
+      return resp.status(400).json({ error: 'User ID is required' });
     }
-
+  
     try {
-        const expirationInSeconds = 3600; // Token validity (1 hour)
-        const rtmToken = RtmTokenBuilder.buildToken(APP_ID, APP_CERTIFICATE, `user_${userId}`, Role.Rtm_User, expirationInSeconds);
-
-        resp.json({
-            token: rtmToken,
-            expires_in: expirationInSeconds
-        });
+      const expirationInSeconds = 3600;
+      const rtmToken = RtmTokenBuilder.buildToken(
+        APP_ID,
+        APP_CERTIFICATE,
+        userId,
+        Role.Rtm_User,
+        expirationInSeconds
+      );
+  
+      resp.json({
+        token: rtmToken,
+        expires_in: expirationInSeconds
+      });
     } catch (error) {
-        console.error('Error generating RTM token:', error);
-        resp.status(500).json({ error: 'Failed to generate RTM token' });
+      console.error('Error generating RTM token:', error);
+      resp.status(500).json({ error: 'Failed to generate RTM token' });
     }
-});
+  });
+
 
 // Start the server
 const PORT = process.env.PORT || 8080;
