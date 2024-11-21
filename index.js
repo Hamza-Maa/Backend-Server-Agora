@@ -191,7 +191,7 @@ app.get('/rtm_token', nocache, (req, resp) => {
 
     try {
         const expirationInSeconds = 3600; // Token validity (1 hour)
-        const rtmToken = RtmTokenBuilder.buildToken(APP_ID, APP_CERTIFICATE, `user_${userId}`, Role.Rtm_User, expirationInSeconds);
+        const rtmToken = RtmTokenBuilder.buildToken(APP_ID, APP_CERTIFICATE, userId, Role.Rtm_User, expirationInSeconds);
 
         resp.json({
             token: rtmToken,
