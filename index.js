@@ -1,5 +1,5 @@
 const express = require('express');
-const { RtcTokenBuilder, RtcRole, RtmTokenBuilder, ChatTokenBuilder } = require('agora-token');
+const { RtcTokenBuilder, RtcRole, RtmTokenBuilder, ChatTokenBuilder, RtcRole } = require('agora-token');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
@@ -38,11 +38,11 @@ function nocache(req, res, next) {
 setInterval(removeExpiredChannels, 5 * 60 * 1000);
 
 // Define Role object
-const Role = {
+/*const Role = {
     Rtm_User: 1,
     Role_Publisher: 1,
     Role_Subscriber: 2
-};
+};*/
 
 // Endpoint to generate an App Token and userUuid
 app.post('/fetch_app_token', (req, res) => {
@@ -102,28 +102,29 @@ app.post('/create_user', async (req, res) => {
 
 app.get('/create_channel', nocache, (req, resp) => {
     try {
-        const channel = generateRandomChannelName();
-        const expireAt = Math.floor(Date.now() / 1000) + 3600;
-
-        createdChannels.push({ channel, expireAt });
-
-        const uid = parseInt(req.query.uid) || Math.floor(Math.random() * 1000000) + 1;
-
-        // Generate RTC Token
-        const rtcToken = RtcTokenBuilder.buildTokenWithUid(
-            APP_ID,
-            APP_CERTIFICATE,
-            channel,
-            parseInt(uid),
-            RtcRole.PUBLISHER,
-            expireAt
-        );
-        resp.json({ channel, rtcToken, uid });
+      const channel = generateRandomChannelName();
+      const expireAt = Math.floor(Date.now() / 1000) + 3600;
+  
+      createdChannels.push({ channel, expireAt });
+  
+      const uid = Math.floor(Math.random() * 1000000) + 1; // Generate a uid > 0
+  
+      // Generate RTC Token
+      const rtcToken = RtcTokenBuilder.buildTokenWithUid(
+        APP_ID,
+        APP_CERTIFICATE,
+        channel,
+        uid,
+        RtcRole.PUBLISHER,
+        expireAt
+      );
+  
+      resp.json({ channel, rtcToken, uid });
     } catch (error) {
-        console.error('Error creating channel:', error);
-        resp.status(500).json({ error: 'Internal Server Error' });
+      console.error('Error creating channel:', error);
+      resp.status(500).json({ error: 'Internal Server Error' });
     }
-});
+  });
 
 // Endpoint to check if a channel exists
 app.get('/check_channel', nocache, (req, resp) => {
@@ -179,12 +180,15 @@ app.get('/rtm_token', nocache, (req, resp) => {
   
     try {
       const expirationInSeconds = 3600;
+      const currentTimestamp = Math.floor(Date.now() / 1000);
+      const privilegeExpiredTs = currentTimestamp + expirationInSeconds;
+  
       const rtmToken = RtmTokenBuilder.buildToken(
         APP_ID,
         APP_CERTIFICATE,
         userId,
-        Role.Rtm_User,
-        expirationInSeconds
+        RtmRole.Rtm_User,
+        privilegeExpiredTs
       );
   
       resp.json({
