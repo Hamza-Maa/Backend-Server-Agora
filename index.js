@@ -49,7 +49,12 @@ app.post('/fetch_app_token', (req, res) => {
     try {
         const expirationInSeconds = 3600; // Token validity (1 hour)
         const userUuid = uuidv4(); // Generate a random userUuid
-        const appToken = ChatTokenBuilder.buildAppToken(APP_ID, APP_CERTIFICATE, expirationInSeconds);
+
+        // Calculate absolute expiration timestamp
+        const currentTimestamp = Math.floor(Date.now() / 1000);
+        const privilegeExpiredTs = currentTimestamp + expirationInSeconds;
+
+        const appToken = ChatTokenBuilder.buildAppToken(APP_ID, APP_CERTIFICATE, privilegeExpiredTs);
 
         res.json({
             token: appToken,
@@ -114,7 +119,7 @@ app.get('/create_channel', nocache, (req, resp) => {
             APP_ID,
             APP_CERTIFICATE,
             channel,
-            parseInt(uid), // Ensure uid is an integer
+            parseInt(uid, 10), // Ensure uid is an integer
             RtcRole.PUBLISHER,
             expireAt
         );
@@ -123,7 +128,7 @@ app.get('/create_channel', nocache, (req, resp) => {
         const rtmToken = RtmTokenBuilder.buildToken(
             APP_ID,
             APP_CERTIFICATE,
-            uid, // Use string-based userId for RTM
+            uid.toString(), // Use string-based userId for RTM
             Role.Rtm_User,
             expireAt
         );
@@ -151,11 +156,11 @@ app.get('/check_channel', nocache, (req, resp) => {
 });
 
 // Endpoint to generate access token for a given channel and user 
-//designed to generate an RTC token for a user to join a particular video call channel
+// Designed to generate an RTC token for a user to join a particular video call channel
 app.get('/access_token', nocache, (req, resp) => {
     const channel = req.query.channel;
-    const uid = req.query.uid || 0; // Default to 0 if no user ID is provided
-    const expiredTs = req.query.expiredTs || Math.floor(Date.now() / 1000) + 3600;
+    const uid = req.query.uid ? parseInt(req.query.uid, 10) : 0; // Default to 0 if no user ID is provided
+    const expiredTs = req.query.expiredTs ? parseInt(req.query.expiredTs, 10) : Math.floor(Date.now() / 1000) + 3600;
 
     if (!channel) {
         return resp.status(400).json({ error: 'Channel name is required' });
@@ -183,15 +188,23 @@ app.get('/access_token', nocache, (req, resp) => {
 // Endpoint to generate an RTM token for chat
 app.get('/rtm_token', nocache, (req, resp) => {
     const userId = req.query.userId; // User ID (UUID or custom user ID)
-    const channel = req.query.channel; // The specific channel for RTM
 
-    if (!userId || !channel) {
-        return resp.status(400).json({ error: 'User ID and channel are required' });
+    if (!userId) {
+        return resp.status(400).json({ error: 'User ID is required' });
     }
 
     try {
         const expirationInSeconds = 3600; // Token validity (1 hour)
-        const rtmToken = RtmTokenBuilder.buildToken(APP_ID, APP_CERTIFICATE, userId, Role.Rtm_User, expirationInSeconds);
+        const currentTimestamp = Math.floor(Date.now() / 1000);
+        const privilegeExpiredTs = currentTimestamp + expirationInSeconds;
+
+        const rtmToken = RtmTokenBuilder.buildToken(
+            APP_ID,
+            APP_CERTIFICATE,
+            userId,
+            Role.Rtm_User,
+            privilegeExpiredTs
+        );
 
         resp.json({
             token: rtmToken,
@@ -213,5 +226,5 @@ app.listen(PORT, () => {
     console.log('/create_channel - Create a new video call channel');
     console.log('/check_channel?channel=[channel_name] - Check if a channel exists');
     console.log('/access_token?channel=[channel_name]&uid=[user_id] - Get RTC token for a channel');
-    console.log('/rtm_token?userId=[user_id]&channel=[channel_name] - Get RTM token for a channel');
+    console.log('/rtm_token?userId=[user_id] - Get RTM token for a user');
 });
