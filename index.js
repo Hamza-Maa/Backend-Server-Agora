@@ -1,5 +1,5 @@
 const express = require('express');
-const { RtcTokenBuilder, RtcRole, RtmTokenBuilder, ChatTokenBuilder, RtcRole } = require('agora-token');
+const { RtcTokenBuilder, RtcRole, RtmTokenBuilder, ChatTokenBuilder } = require('agora-token');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
