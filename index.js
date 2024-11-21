@@ -172,10 +172,11 @@ app.get('/access_token', nocache, (req, resp) => {
 
 // Endpoint to generate an RTM token for chat
 app.get('/rtm_token', nocache, (req, resp) => {
-    const userId = req.query.userId;
+    const userId = req.query.userId; // Should be the uuid
+    const channel = req.query.channel;
   
-    if (!userId) {
-      return resp.status(400).json({ error: 'User ID is required' });
+    if (!userId || !channel) {
+      return resp.status(400).json({ error: 'User ID and channel are required' });
     }
   
     try {
@@ -200,6 +201,7 @@ app.get('/rtm_token', nocache, (req, resp) => {
       resp.status(500).json({ error: 'Failed to generate RTM token' });
     }
   });
+  
 
 
 // Start the server
